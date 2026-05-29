@@ -121,6 +121,37 @@ test("createButton mounts UI in shadow DOM to isolate page styles", () => {
   }
 });
 
+test("init replaces a stale existing host instead of binding new state to old controls", () => {
+  const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
+    url: "https://example.com/page.html",
+    pretendToBeVisual: true,
+  });
+  const previousDocument = global.document;
+  global.document = dom.window.document;
+
+  try {
+    const staleHost = dom.window.document.createElement("div");
+    staleHost.id = grabber.ui.rootId;
+    staleHost.attachShadow({ mode: "open" }).innerHTML = "<button class='ig-button'>stale</button>";
+    dom.window.document.documentElement.appendChild(staleHost);
+
+    grabber.ui.shadow = null;
+    grabber.ui.boundShadow = null;
+    grabber.ui.init();
+
+    const host = dom.window.document.getElementById(grabber.ui.rootId);
+    assert.notEqual(host, staleHost);
+    assert.equal(dom.window.document.querySelectorAll(`#${grabber.ui.rootId}`).length, 1);
+    assert.equal(host.shadowRoot.querySelector(".ig-button").textContent.trim(), "");
+  } finally {
+    grabber.ui.close();
+    dom.window.document.getElementById(grabber.ui.rootId)?.remove();
+    grabber.ui.shadow = null;
+    grabber.ui.boundShadow = null;
+    global.document = previousDocument;
+  }
+});
+
 test("renderCard uses a custom selector button instead of a native checkbox", () => {
   const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
     url: "https://example.com/page.html",
@@ -149,32 +180,150 @@ test("renderCard uses a custom selector button instead of a native checkbox", ()
 });
 
 test("custom selector button toggles image selection state", () => {
-  const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
-    url: "https://example.com/page.html",
-  });
+  const dom = new JSDOM(
+    `<!doctype html><html><head></head><body>
+      <img src="/image.jpg" width="640" height="480">
+    </body></html>`,
+    {
+      url: "https://example.com/page.html",
+      pretendToBeVisual: true,
+    }
+  );
   const previousDocument = global.document;
-  const previousRenderOverlay = grabber.ui.renderOverlay;
   global.document = dom.window.document;
 
   try {
-    const item = grabber.scanner.createCandidate({
-      url: "https://example.com/image.jpg",
-      sourceType: "img",
-      baseUrl: "https://example.com/page.html",
-      width: 640,
-      height: 480,
-    });
+    grabber.ui.shadow = null;
     grabber.ui.state.selected = new Set();
-    grabber.ui.renderOverlay = () => {};
+    grabber.ui.state.candidates = [];
+    grabber.ui.init();
+    grabber.ui.open();
 
-    const button = grabber.ui.renderCard(item).querySelector("button.ig-select");
+    const button = dom.window.document
+      .getElementById(grabber.ui.rootId)
+      .shadowRoot.querySelector("button.ig-select");
     button.click();
-    assert.equal(grabber.ui.state.selected.has(item.id), true);
+    assert.equal(grabber.ui.state.selected.has("https://example.com/image.jpg"), true);
 
-    button.click();
-    assert.equal(grabber.ui.state.selected.has(item.id), false);
+    dom.window.document
+      .getElementById(grabber.ui.rootId)
+      .shadowRoot.querySelector("button.ig-select")
+      .click();
+    assert.equal(grabber.ui.state.selected.has("https://example.com/image.jpg"), false);
   } finally {
-    grabber.ui.renderOverlay = previousRenderOverlay;
+    grabber.ui.close();
+    dom.window.document.getElementById(grabber.ui.rootId)?.remove();
+    grabber.ui.shadow = null;
+    grabber.ui.boundShadow = null;
+    grabber.ui.state.selected = new Set();
+    grabber.ui.state.candidates = [];
+    global.document = previousDocument;
+  }
+});
+
+test("selector buttons remain interactive after refreshing newly loaded images", () => {
+  const dom = new JSDOM(
+    `<!doctype html><html><head></head><body>
+      <img src="/first.jpg" width="640" height="480">
+    </body></html>`,
+    {
+      url: "https://example.com/page.html",
+      pretendToBeVisual: true,
+    }
+  );
+  const previousDocument = global.document;
+  global.document = dom.window.document;
+
+  try {
+    grabber.ui.shadow = null;
+    grabber.ui.state.selected = new Set();
+    grabber.ui.state.candidates = [];
+    grabber.ui.init();
+    grabber.ui.open();
+
+    const firstSelect = dom.window.document
+      .getElementById(grabber.ui.rootId)
+      .shadowRoot.querySelector("button.ig-select");
+    firstSelect.click();
+    assert.equal(grabber.ui.state.selected.size, 1);
+
+    const loadedLater = dom.window.document.createElement("img");
+    loadedLater.src = "/second.jpg";
+    loadedLater.width = 800;
+    loadedLater.height = 600;
+    dom.window.document.body.appendChild(loadedLater);
+
+    dom.window.document
+      .getElementById(grabber.ui.rootId)
+      .shadowRoot.querySelector(".ig-toolbar button")
+      .click();
+
+    const buttonsAfterRefresh = dom.window.document
+      .getElementById(grabber.ui.rootId)
+      .shadowRoot.querySelectorAll("button.ig-select");
+    assert.equal(buttonsAfterRefresh.length, 2);
+    assert.equal(grabber.ui.state.selected.size, 0);
+
+    buttonsAfterRefresh[1].click();
+
+    assert.equal(grabber.ui.state.selected.size, 1);
+    assert.equal(grabber.ui.selectedCandidates()[0].url, "https://example.com/second.jpg");
+  } finally {
+    grabber.ui.close();
+    dom.window.document.getElementById(grabber.ui.rootId)?.remove();
+    grabber.ui.shadow = null;
+    grabber.ui.state.selected = new Set();
+    grabber.ui.state.candidates = [];
+    global.document = previousDocument;
+  }
+});
+
+test("refreshed image cards can be selected by tapping the card surface", () => {
+  const dom = new JSDOM(
+    `<!doctype html><html><head></head><body>
+      <img src="/first.jpg" width="640" height="480">
+    </body></html>`,
+    {
+      url: "https://example.com/page.html",
+      pretendToBeVisual: true,
+    }
+  );
+  const previousDocument = global.document;
+  global.document = dom.window.document;
+
+  try {
+    grabber.ui.shadow = null;
+    grabber.ui.state.selected = new Set();
+    grabber.ui.state.candidates = [];
+    grabber.ui.init();
+    grabber.ui.open();
+
+    const loadedLater = dom.window.document.createElement("img");
+    loadedLater.src = "/second.jpg";
+    loadedLater.width = 800;
+    loadedLater.height = 600;
+    dom.window.document.body.appendChild(loadedLater);
+
+    dom.window.document
+      .getElementById(grabber.ui.rootId)
+      .shadowRoot.querySelector(".ig-toolbar button")
+      .click();
+
+    const cardsAfterRefresh = dom.window.document
+      .getElementById(grabber.ui.rootId)
+      .shadowRoot.querySelectorAll(".ig-card");
+    assert.equal(cardsAfterRefresh.length, 2);
+
+    cardsAfterRefresh[1].click();
+
+    assert.equal(grabber.ui.state.selected.size, 1);
+    assert.equal(grabber.ui.selectedCandidates()[0].url, "https://example.com/second.jpg");
+  } finally {
+    grabber.ui.close();
+    dom.window.document.getElementById(grabber.ui.rootId)?.remove();
+    grabber.ui.shadow = null;
+    grabber.ui.state.selected = new Set();
+    grabber.ui.state.candidates = [];
     global.document = previousDocument;
   }
 });

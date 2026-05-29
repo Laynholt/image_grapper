@@ -308,13 +308,15 @@
       selected: new Set(),
       hideSmall: true,
     },
+    boundShadow: null,
 
     init() {
       const existing = document.getElementById(this.rootId);
       if (existing) {
-        this.shadow = existing.shadowRoot;
-        return;
+        existing.remove();
       }
+      this.shadow = null;
+      this.boundShadow = null;
       this.createButton();
     },
 
@@ -362,8 +364,10 @@
         }
         .ig-card {
           border: 1px solid #1f2a44; border-radius: 8px; overflow: hidden;
-          background: #111827; min-width: 0;
+          background: #111827; min-width: 0; cursor: pointer;
         }
+        .ig-card:hover { border-color: #38bdf8; }
+        .ig-card[aria-selected="true"] { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8; }
         .ig-card img {
           width: 100%; aspect-ratio: 1 / 1; object-fit: contain;
           background: #020617; display: block;
@@ -408,7 +412,40 @@
       button.innerHTML = config.iconSvg;
       button.addEventListener("click", () => this.open());
       this.shadow.appendChild(button);
+      this.bindEvents();
       document.documentElement.appendChild(root);
+    },
+
+    bindEvents() {
+      if (!this.shadow || this.boundShadow === this.shadow) return;
+      this.shadow.addEventListener("click", (event) => this.handleGalleryClick(event));
+      this.shadow.addEventListener("keydown", (event) => this.handleGalleryKeydown(event));
+      this.boundShadow = this.shadow;
+    },
+
+    handleGalleryClick(event) {
+      const target = event.target;
+      if (!target || typeof target.closest !== "function") return;
+      const selectionTarget = target.closest(".ig-select, .ig-card");
+      if (!selectionTarget || !selectionTarget.dataset.imageId) return;
+      event.preventDefault();
+      this.toggleSelection(selectionTarget.dataset.imageId);
+    },
+
+    handleGalleryKeydown(event) {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const target = event.target;
+      if (!target || typeof target.closest !== "function") return;
+      const selectionTarget = target.closest(".ig-select, .ig-card");
+      if (!selectionTarget || !selectionTarget.dataset.imageId) return;
+      event.preventDefault();
+      this.toggleSelection(selectionTarget.dataset.imageId);
+    },
+
+    toggleSelection(id) {
+      if (this.state.selected.has(id)) this.state.selected.delete(id);
+      else this.state.selected.add(id);
+      this.renderOverlay();
     },
 
     open() {
@@ -490,6 +527,10 @@
     renderCard(item) {
       const card = document.createElement("article");
       card.className = "ig-card";
+      card.dataset.imageId = item.id;
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+      card.setAttribute("aria-selected", String(this.state.selected.has(item.id)));
       const img = document.createElement("img");
       img.src = item.url;
       img.alt = "";
@@ -499,13 +540,9 @@
       const selectButton = document.createElement("button");
       selectButton.type = "button";
       selectButton.className = "ig-select";
+      selectButton.dataset.imageId = item.id;
       selectButton.setAttribute("aria-pressed", String(this.state.selected.has(item.id)));
       selectButton.textContent = this.state.selected.has(item.id) ? "Selected" : "Select";
-      selectButton.addEventListener("click", () => {
-        if (this.state.selected.has(item.id)) this.state.selected.delete(item.id);
-        else this.state.selected.add(item.id);
-        this.renderOverlay();
-      });
       const meta = document.createElement("div");
       meta.className = "ig-meta";
       const size = item.width && item.height ? `${item.width}x${item.height}` : "size unknown";
