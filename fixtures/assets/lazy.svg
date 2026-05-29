@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="300" viewBox="0 0 500 300">
+  <rect width="500" height="300" fill="#fde68a"/>
+  <text x="36" y="160" font-family="Arial, sans-serif" font-size="42" fill="#111827">Lazy image</text>
+</svg>

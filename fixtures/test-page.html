@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Image Grabber Fixture</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 24px; color: #111827; }
+      main { display: grid; gap: 24px; max-width: 900px; }
+      .hero {
+        min-height: 220px;
+        background-image: url("assets/background.svg");
+        background-size: cover;
+        border-radius: 8px;
+      }
+      .tiny { width: 16px; height: 16px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Image Grabber Fixture</h1>
+      <img src="assets/normal.svg" width="640" height="360" alt="Normal test image">
+      <img
+        srcset="assets/srcset-small.svg 320w, assets/srcset-large.svg 960w"
+        width="320"
+        height="180"
+        alt="Srcset test image">
+      <picture>
+        <source srcset="assets/srcset-large.svg 1x">
+        <img src="assets/normal.svg" width="640" height="360" alt="Picture fallback duplicate">
+      </picture>
+      <img data-src="assets/lazy.svg" width="500" height="300" alt="Lazy test image">
+      <div class="hero"></div>
+      <img class="tiny" src="assets/favicon.svg" width="16" height="16" alt="">
+    </main>
+    <script src="../image-grabber.user.js"></script>
+  </body>
+</html>

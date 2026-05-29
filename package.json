@@ -1,0 +1,12 @@
+{
+  "name": "image-grabber-userscript",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Userscript that finds page images and offers a selectable download gallery.",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
