@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         Image Grabber Gallery
 // @namespace    local.image-grabber
-// @version      0.1.0
+// @version      0.2.0
 // @description  Find images on the current page and save selected ones.
 // @match        *://*/*
+// @icon         data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%230b1220%22%2F%3E%3Cpath%20d%3D%22M16%2018h32v28H16z%22%20fill%3D%22%23111827%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%224%22%2F%3E%3Ccircle%20cx%3D%2242%22%20cy%3D%2225%22%20r%3D%224%22%20fill%3D%22%23facc15%22%2F%3E%3Cpath%20d%3D%22M19%2042l9-11%207%208%205-6%207%209z%22%20fill%3D%22%2322c55e%22%2F%3E%3Cpath%20d%3D%22M32%2054V36m0%2018l-8-8m8%208l8-8%22%20stroke%3D%22%23f8fafc%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E
+// @icon64       data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%230b1220%22%2F%3E%3Cpath%20d%3D%22M16%2018h32v28H16z%22%20fill%3D%22%23111827%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%224%22%2F%3E%3Ccircle%20cx%3D%2242%22%20cy%3D%2225%22%20r%3D%224%22%20fill%3D%22%23facc15%22%2F%3E%3Cpath%20d%3D%22M19%2042l9-11%207%208%205-6%207%209z%22%20fill%3D%22%2322c55e%22%2F%3E%3Cpath%20d%3D%22M32%2054V36m0%2018l-8-8m8%208l8-8%22%20stroke%3D%22%23f8fafc%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E
 // @grant        GM_download
 // @grant        GM_openInTab
 // @grant        GM_xmlhttpRequest
@@ -27,6 +29,15 @@
     smallImageMaxArea: 96 * 96,
     smallImageNamePattern: /(spacer|pixel|tracking|tracker|icon|sprite|favicon|avatar|blank|1x1)/i,
     imageExtensionPattern: /\.(avif|bmp|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i,
+    iconSvg: `
+      <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+        <rect width="64" height="64" rx="14" fill="#0b1220"></rect>
+        <path d="M16 18h32v28H16z" fill="#111827" stroke="#38bdf8" stroke-width="4"></path>
+        <circle cx="42" cy="25" r="4" fill="#facc15"></circle>
+        <path d="M19 42l9-11 7 8 5-6 7 9z" fill="#22c55e"></path>
+        <path d="M32 54V36m0 18l-8-8m8 8l8-8" stroke="#f8fafc" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
   };
 
   const utils = {
@@ -291,6 +302,7 @@
 
   const ui = {
     rootId: "image-grabber-gallery-root",
+    shadow: null,
     state: {
       candidates: [],
       selected: new Set(),
@@ -298,79 +310,104 @@
     },
 
     init() {
-      if (document.getElementById(this.rootId)) return;
-      this.injectStyles();
+      const existing = document.getElementById(this.rootId);
+      if (existing) {
+        this.shadow = existing.shadowRoot;
+        return;
+      }
       this.createButton();
     },
 
-    injectStyles() {
+    createStyles() {
       const style = document.createElement("style");
       style.textContent = `
-        #${this.rootId}, #${this.rootId} * { box-sizing: border-box; }
-        #${this.rootId} .ig-button {
+        :host, :host * { box-sizing: border-box; }
+        button { font: inherit; }
+        .ig-button {
           position: fixed; right: 16px; bottom: 16px; z-index: 2147483647;
           width: 48px; height: 48px; border: 0; border-radius: 50%;
-          background: #155eef; color: white; font: 700 13px system-ui, sans-serif;
-          box-shadow: 0 8px 24px rgba(16, 24, 40, .24); cursor: pointer;
+          background: #0b1220; color: white; padding: 7px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, .45), 0 0 0 1px rgba(56, 189, 248, .55);
+          cursor: pointer;
         }
-        #${this.rootId} .ig-overlay {
+        .ig-button svg { width: 100%; height: 100%; display: block; }
+        .ig-button:hover { transform: translateY(-1px); }
+        .ig-overlay {
           position: fixed; inset: 0; z-index: 2147483646;
-          background: rgba(15, 23, 42, .52); display: grid; place-items: center;
+          background: rgba(2, 6, 23, .72); display: grid; place-items: center;
           padding: 16px;
         }
-        #${this.rootId} .ig-panel {
+        .ig-panel {
           width: min(1100px, 100%); height: min(760px, 100%);
-          background: #ffffff; color: #111827; border-radius: 8px;
+          background: #0b1220; color: #e5e7eb; border: 1px solid #1f2a44; border-radius: 8px;
           display: grid; grid-template-rows: auto 1fr auto;
-          overflow: hidden; box-shadow: 0 24px 70px rgba(15, 23, 42, .35);
+          overflow: hidden; box-shadow: 0 24px 70px rgba(0, 0, 0, .6);
           font: 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
-        #${this.rootId} .ig-toolbar {
+        .ig-toolbar {
           display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-          padding: 10px; border-bottom: 1px solid #e5e7eb; background: #f9fafb;
+          padding: 10px; border-bottom: 1px solid #1f2a44; background: #111827;
         }
-        #${this.rootId} .ig-toolbar strong { margin-right: auto; }
-        #${this.rootId} button, #${this.rootId} label {
-          min-height: 36px; border-radius: 6px; border: 1px solid #d1d5db;
-          background: #fff; color: #111827; padding: 0 10px; cursor: pointer;
+        .ig-toolbar strong { margin-right: auto; color: #f8fafc; }
+        .ig-toolbar button {
+          min-height: 36px; border-radius: 6px; border: 1px solid #334155;
+          background: #172033; color: #e5e7eb; padding: 0 10px; cursor: pointer;
           display: inline-flex; align-items: center; gap: 6px;
         }
-        #${this.rootId} .ig-primary { background: #155eef; color: white; border-color: #155eef; }
-        #${this.rootId} .ig-grid {
+        .ig-toolbar button:hover, .ig-select:hover { border-color: #38bdf8; color: #f8fafc; }
+        .ig-primary { background: #0ea5e9; color: #06111f; border-color: #38bdf8; font-weight: 700; }
+        .ig-grid {
           overflow: auto; padding: 12px; display: grid;
           grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
         }
-        #${this.rootId} .ig-card {
-          border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;
-          background: #fff; min-width: 0;
+        .ig-card {
+          border: 1px solid #1f2a44; border-radius: 8px; overflow: hidden;
+          background: #111827; min-width: 0;
         }
-        #${this.rootId} .ig-card img {
+        .ig-card img {
           width: 100%; aspect-ratio: 1 / 1; object-fit: contain;
-          background: #f3f4f6; display: block;
+          background: #020617; display: block;
         }
-        #${this.rootId} .ig-card-body { padding: 8px; display: grid; gap: 6px; }
-        #${this.rootId} .ig-meta { color: #4b5563; font-size: 12px; overflow-wrap: anywhere; }
-        #${this.rootId} .ig-status { padding: 8px 10px; border-top: 1px solid #e5e7eb; max-height: 120px; overflow: auto; color: #374151; }
+        .ig-card-body { padding: 8px; display: grid; gap: 6px; }
+        .ig-select {
+          min-height: 34px; border-radius: 6px; border: 1px solid #334155;
+          background: #172033; color: #e5e7eb; cursor: pointer;
+          display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+          width: 100%;
+        }
+        .ig-select::before {
+          content: ""; width: 16px; height: 16px; border-radius: 4px;
+          border: 1px solid #64748b; background: #020617; display: inline-block;
+        }
+        .ig-select[aria-pressed="true"] { background: #0f3b57; border-color: #38bdf8; color: #f8fafc; }
+        .ig-select[aria-pressed="true"]::before {
+          background: #38bdf8; border-color: #7dd3fc;
+          box-shadow: inset 0 0 0 3px #0f172a;
+        }
+        .ig-meta { color: #94a3b8; font-size: 12px; overflow-wrap: anywhere; }
+        .ig-status { padding: 8px 10px; border-top: 1px solid #1f2a44; max-height: 120px; overflow: auto; color: #cbd5e1; background: #111827; }
         @media (max-width: 640px) {
-          #${this.rootId} .ig-overlay { padding: 0; place-items: stretch; }
-          #${this.rootId} .ig-panel { width: 100%; height: 100%; border-radius: 0; }
-          #${this.rootId} .ig-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .ig-overlay { padding: 0; place-items: stretch; }
+          .ig-panel { width: 100%; height: 100%; border-radius: 0; }
+          .ig-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
       `;
-      document.head.appendChild(style);
+      return style;
     },
 
     createButton() {
       const root = document.createElement("div");
       root.id = this.rootId;
+      this.shadow = root.attachShadow({ mode: "open" });
+      this.shadow.appendChild(this.createStyles());
       const button = document.createElement("button");
       button.className = "ig-button";
       button.type = "button";
-      button.textContent = "IMG";
       button.title = "Find page images";
       button.setAttribute("aria-label", "Find page images");
+      button.innerHTML = config.iconSvg;
       button.addEventListener("click", () => this.open());
-      root.appendChild(button);
+      this.shadow.appendChild(button);
       document.documentElement.appendChild(root);
     },
 
@@ -385,7 +422,8 @@
     },
 
     renderOverlay() {
-      const root = document.getElementById(this.rootId);
+      const root = this.shadow;
+      if (!root) return;
       root.querySelector(".ig-overlay")?.remove();
       const overlay = document.createElement("div");
       overlay.className = "ig-overlay";
@@ -424,16 +462,15 @@
     },
 
     toggleSmallFilter() {
-      const label = document.createElement("label");
-      const input = document.createElement("input");
-      input.type = "checkbox";
-      input.checked = this.state.hideSmall;
-      input.addEventListener("change", () => {
-        this.state.hideSmall = input.checked;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("aria-pressed", String(this.state.hideSmall));
+      button.textContent = this.state.hideSmall ? "Small hidden" : "Small shown";
+      button.addEventListener("click", () => {
+        this.state.hideSmall = !this.state.hideSmall;
         this.renderOverlay();
       });
-      label.append(input, document.createTextNode("Hide small"));
-      return label;
+      return button;
     },
 
     renderGrid() {
@@ -459,21 +496,21 @@
       img.loading = "lazy";
       const body = document.createElement("div");
       body.className = "ig-card-body";
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = this.state.selected.has(item.id);
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) this.state.selected.add(item.id);
-        else this.state.selected.delete(item.id);
+      const selectButton = document.createElement("button");
+      selectButton.type = "button";
+      selectButton.className = "ig-select";
+      selectButton.setAttribute("aria-pressed", String(this.state.selected.has(item.id)));
+      selectButton.textContent = this.state.selected.has(item.id) ? "Selected" : "Select";
+      selectButton.addEventListener("click", () => {
+        if (this.state.selected.has(item.id)) this.state.selected.delete(item.id);
+        else this.state.selected.add(item.id);
         this.renderOverlay();
       });
-      label.append(checkbox, document.createTextNode("Select"));
       const meta = document.createElement("div");
       meta.className = "ig-meta";
       const size = item.width && item.height ? `${item.width}x${item.height}` : "size unknown";
       meta.textContent = `${size} - ${item.sourceTypes.join(", ")} - ${item.displayUrl}`;
-      body.append(label, meta);
+      body.append(selectButton, meta);
       card.append(img, body);
       return card;
     },
@@ -491,7 +528,7 @@
     },
 
     setStatus(message) {
-      const root = document.getElementById(this.rootId);
+      const root = this.shadow || document.getElementById(this.rootId)?.shadowRoot;
       const status = root && root.querySelector(".ig-status");
       if (status) status.textContent = message;
     },
@@ -506,7 +543,8 @@
     },
 
     close() {
-      document.getElementById(this.rootId)?.querySelector(".ig-overlay")?.remove();
+      const root = this.shadow || document.getElementById(this.rootId)?.shadowRoot;
+      root?.querySelector(".ig-overlay")?.remove();
     },
   };
 

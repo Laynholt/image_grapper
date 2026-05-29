@@ -97,3 +97,84 @@ test("scanDocument marks small decorative images but still returns them", () => 
   assert.equal(results.length, 1);
   assert.equal(results[0].likelySmall, true);
 });
+
+test("createButton mounts UI in shadow DOM to isolate page styles", () => {
+  const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
+    url: "https://example.com/page.html",
+    pretendToBeVisual: true,
+  });
+  const previousDocument = global.document;
+  global.document = dom.window.document;
+
+  try {
+    grabber.ui.init();
+
+    const host = dom.window.document.getElementById(grabber.ui.rootId);
+    assert.ok(host);
+    assert.ok(host.shadowRoot);
+    assert.equal(host.shadowRoot.querySelectorAll(".ig-button").length, 1);
+    assert.equal(host.querySelectorAll(".ig-button").length, 0);
+  } finally {
+    grabber.ui.close();
+    global.document = previousDocument;
+    grabber.ui.shadow = null;
+  }
+});
+
+test("renderCard uses a custom selector button instead of a native checkbox", () => {
+  const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
+    url: "https://example.com/page.html",
+  });
+  const previousDocument = global.document;
+  global.document = dom.window.document;
+
+  try {
+    const item = grabber.scanner.createCandidate({
+      url: "https://example.com/image.jpg",
+      sourceType: "img",
+      baseUrl: "https://example.com/page.html",
+      width: 640,
+      height: 480,
+    });
+    grabber.ui.state.selected = new Set();
+
+    const card = grabber.ui.renderCard(item);
+
+    assert.equal(card.querySelectorAll('input[type="checkbox"]').length, 0);
+    assert.equal(card.querySelectorAll("button.ig-select").length, 1);
+    assert.equal(card.querySelector("button.ig-select").getAttribute("aria-pressed"), "false");
+  } finally {
+    global.document = previousDocument;
+  }
+});
+
+test("custom selector button toggles image selection state", () => {
+  const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
+    url: "https://example.com/page.html",
+  });
+  const previousDocument = global.document;
+  const previousRenderOverlay = grabber.ui.renderOverlay;
+  global.document = dom.window.document;
+
+  try {
+    const item = grabber.scanner.createCandidate({
+      url: "https://example.com/image.jpg",
+      sourceType: "img",
+      baseUrl: "https://example.com/page.html",
+      width: 640,
+      height: 480,
+    });
+    grabber.ui.state.selected = new Set();
+    grabber.ui.renderOverlay = () => {};
+
+    const button = grabber.ui.renderCard(item).querySelector("button.ig-select");
+    button.click();
+    assert.equal(grabber.ui.state.selected.has(item.id), true);
+
+    button.click();
+    assert.equal(grabber.ui.state.selected.has(item.id), false);
+  } finally {
+    grabber.ui.renderOverlay = previousRenderOverlay;
+    global.document = previousDocument;
+  }
+});

@@ -12,6 +12,8 @@ A cross-manager userscript for finding images already available on the current p
 
 The script scans normal images, `srcset`, common lazy-load attributes, and visible CSS background images. It does not bypass DRM, paywalls, login requirements, or server-side access controls.
 
+The gallery uses a dark theme and runs inside Shadow DOM so site styles are much less likely to break controls. The floating button and userscript metadata icon use an embedded SVG, so there are no external icon files to host.
+
 Downloads use the best available path:
 
 1. `GM_download` when supported.
@@ -36,4 +38,4 @@ npm test
 
 Manual fixture:
 
-Open `fixtures/test-page.html` in a browser. The fixture includes the script directly for local development, so the floating button should appear without installing the userscript manager. Press the floating button and verify that normal images, `srcset`, lazy image URLs, and background images appear in the gallery. Toggle `Hide small` to show the tiny image.
+Open `fixtures/test-page.html` in a browser. The fixture includes the script directly for local development, so the floating icon button should appear without installing the userscript manager. Press the floating button and verify that normal images, `srcset`, lazy image URLs, and background images appear in the gallery. Use `Small hidden` / `Small shown` to toggle tiny images.
