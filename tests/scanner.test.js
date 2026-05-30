@@ -343,8 +343,12 @@ test("gallery grid scrolls thumbnails without compressing card controls", () => 
     assert.match(styles, /\.ig-panel[\s\S]*grid-template-rows: auto minmax\(0, 1fr\) auto/);
     assert.match(styles, /\.ig-grid[\s\S]*overflow-y: auto/);
     assert.match(styles, /\.ig-grid[\s\S]*min-height: 0/);
-    assert.match(styles, /\.ig-card[\s\S]*aspect-ratio: 4 \/ 3/);
+    assert.match(styles, /\.ig-grid[\s\S]*--ig-card-height: clamp\(132px, 22vw, 190px\)/);
+    assert.match(styles, /\.ig-grid[\s\S]*grid-auto-rows: var\(--ig-card-height\)/);
+    assert.match(styles, /\.ig-card[\s\S]*height: 100%/);
+    assert.match(styles, /\.ig-card img[\s\S]*position: absolute/);
     assert.match(styles, /\.ig-card img[\s\S]*height: 100%/);
+    assert.match(styles, /@media \(max-width: 760px\)[\s\S]*--ig-card-height: 128px/);
     assert.match(styles, /\.ig-card\[aria-selected="true"\]::after/);
   } finally {
     global.document = previousDocument;

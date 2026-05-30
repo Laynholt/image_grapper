@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Image Grabber Gallery
 // @namespace    local.image-grabber
-// @version      0.2.1
+// @version      0.2.2
 // @description  Find images on the current page and save selected ones.
 // @match        *://*/*
 // @icon         data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%230b1220%22%2F%3E%3Cpath%20d%3D%22M16%2018h32v28H16z%22%20fill%3D%22%23111827%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%224%22%2F%3E%3Ccircle%20cx%3D%2242%22%20cy%3D%2225%22%20r%3D%224%22%20fill%3D%22%23facc15%22%2F%3E%3Cpath%20d%3D%22M19%2042l9-11%207%208%205-6%207%209z%22%20fill%3D%22%2322c55e%22%2F%3E%3Cpath%20d%3D%22M32%2054V36m0%2018l-8-8m8%208l8-8%22%20stroke%3D%22%23f8fafc%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E
@@ -359,15 +359,16 @@
         .ig-toolbar button:hover { border-color: #38bdf8; color: #f8fafc; }
         .ig-primary { background: #0ea5e9; color: #06111f; border-color: #38bdf8; font-weight: 700; }
         .ig-grid {
+          --ig-card-height: clamp(132px, 22vw, 190px);
           min-height: 0; overflow-x: hidden; overflow-y: auto; padding: 12px; display: grid;
           grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
-          grid-auto-rows: auto; align-content: start; gap: 12px;
+          grid-auto-rows: var(--ig-card-height); align-content: start; gap: 12px;
           scrollbar-color: #38bdf8 #020617;
         }
         .ig-card {
           position: relative; border: 1px solid #1f2a44; border-radius: 8px; overflow: hidden;
           background: #020617; min-width: 0; cursor: pointer;
-          aspect-ratio: 4 / 3; display: block;
+          height: 100%; display: block; contain: layout paint;
         }
         .ig-card:hover, .ig-card:focus-visible { border-color: #38bdf8; outline: none; }
         .ig-card[aria-selected="true"] { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8; }
@@ -382,14 +383,19 @@
           transform: rotate(45deg);
         }
         .ig-card img {
-          width: 100%; height: 100%; object-fit: contain;
+          position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; max-height: 100%;
+          object-fit: contain; overflow: hidden;
           background: #020617; display: block;
         }
         .ig-status { padding: 8px 10px; border-top: 1px solid #1f2a44; max-height: 120px; overflow: auto; color: #cbd5e1; background: #111827; }
-        @media (max-width: 640px) {
+        @media (max-width: 760px) {
           .ig-overlay { padding: 0; place-items: stretch; }
           .ig-panel { width: 100%; height: 100%; border-radius: 0; }
-          .ig-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+          .ig-grid {
+            --ig-card-height: 128px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px; padding: 10px;
+          }
         }
       `;
       return style;
