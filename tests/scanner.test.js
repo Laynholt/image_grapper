@@ -152,7 +152,7 @@ test("init replaces a stale existing host instead of binding new state to old co
   }
 });
 
-test("renderCard uses a custom selector button instead of a native checkbox", () => {
+test("renderCard uses the whole thumbnail card as the selector", () => {
   const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
     url: "https://example.com/page.html",
   });
@@ -172,14 +172,16 @@ test("renderCard uses a custom selector button instead of a native checkbox", ()
     const card = grabber.ui.renderCard(item);
 
     assert.equal(card.querySelectorAll('input[type="checkbox"]').length, 0);
-    assert.equal(card.querySelectorAll("button.ig-select").length, 1);
-    assert.equal(card.querySelector("button.ig-select").getAttribute("aria-pressed"), "false");
+    assert.equal(card.querySelectorAll("button.ig-select").length, 0);
+    assert.equal(card.getAttribute("role"), "button");
+    assert.equal(card.getAttribute("aria-selected"), "false");
+    assert.equal(card.dataset.imageId, item.id);
   } finally {
     global.document = previousDocument;
   }
 });
 
-test("custom selector button toggles image selection state", () => {
+test("thumbnail card toggles image selection state", () => {
   const dom = new JSDOM(
     `<!doctype html><html><head></head><body>
       <img src="/image.jpg" width="640" height="480">
@@ -199,15 +201,15 @@ test("custom selector button toggles image selection state", () => {
     grabber.ui.init();
     grabber.ui.open();
 
-    const button = dom.window.document
+    const card = dom.window.document
       .getElementById(grabber.ui.rootId)
-      .shadowRoot.querySelector("button.ig-select");
-    button.click();
+      .shadowRoot.querySelector(".ig-card");
+    card.click();
     assert.equal(grabber.ui.state.selected.has("https://example.com/image.jpg"), true);
 
     dom.window.document
       .getElementById(grabber.ui.rootId)
-      .shadowRoot.querySelector("button.ig-select")
+      .shadowRoot.querySelector(".ig-card")
       .click();
     assert.equal(grabber.ui.state.selected.has("https://example.com/image.jpg"), false);
   } finally {
@@ -221,7 +223,7 @@ test("custom selector button toggles image selection state", () => {
   }
 });
 
-test("selector buttons remain interactive after refreshing newly loaded images", () => {
+test("thumbnail cards remain interactive after refreshing newly loaded images", () => {
   const dom = new JSDOM(
     `<!doctype html><html><head></head><body>
       <img src="/first.jpg" width="640" height="480">
@@ -241,10 +243,10 @@ test("selector buttons remain interactive after refreshing newly loaded images",
     grabber.ui.init();
     grabber.ui.open();
 
-    const firstSelect = dom.window.document
+    const firstCard = dom.window.document
       .getElementById(grabber.ui.rootId)
-      .shadowRoot.querySelector("button.ig-select");
-    firstSelect.click();
+      .shadowRoot.querySelector(".ig-card");
+    firstCard.click();
     assert.equal(grabber.ui.state.selected.size, 1);
 
     const loadedLater = dom.window.document.createElement("img");
@@ -258,13 +260,13 @@ test("selector buttons remain interactive after refreshing newly loaded images",
       .shadowRoot.querySelector(".ig-toolbar button")
       .click();
 
-    const buttonsAfterRefresh = dom.window.document
+    const cardsAfterRefresh = dom.window.document
       .getElementById(grabber.ui.rootId)
-      .shadowRoot.querySelectorAll("button.ig-select");
-    assert.equal(buttonsAfterRefresh.length, 2);
+      .shadowRoot.querySelectorAll(".ig-card");
+    assert.equal(cardsAfterRefresh.length, 2);
     assert.equal(grabber.ui.state.selected.size, 0);
 
-    buttonsAfterRefresh[1].click();
+    cardsAfterRefresh[1].click();
 
     assert.equal(grabber.ui.state.selected.size, 1);
     assert.equal(grabber.ui.selectedCandidates()[0].url, "https://example.com/second.jpg");
@@ -324,6 +326,27 @@ test("refreshed image cards can be selected by tapping the card surface", () => 
     grabber.ui.shadow = null;
     grabber.ui.state.selected = new Set();
     grabber.ui.state.candidates = [];
+    global.document = previousDocument;
+  }
+});
+
+test("gallery grid scrolls thumbnails without compressing card controls", () => {
+  const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", {
+    url: "https://example.com/page.html",
+  });
+  const previousDocument = global.document;
+  global.document = dom.window.document;
+
+  try {
+    const styles = grabber.ui.createStyles().textContent;
+
+    assert.match(styles, /\.ig-panel[\s\S]*grid-template-rows: auto minmax\(0, 1fr\) auto/);
+    assert.match(styles, /\.ig-grid[\s\S]*overflow-y: auto/);
+    assert.match(styles, /\.ig-grid[\s\S]*min-height: 0/);
+    assert.match(styles, /\.ig-card[\s\S]*aspect-ratio: 4 \/ 3/);
+    assert.match(styles, /\.ig-card img[\s\S]*height: 100%/);
+    assert.match(styles, /\.ig-card\[aria-selected="true"\]::after/);
+  } finally {
     global.document = previousDocument;
   }
 });

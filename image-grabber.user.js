@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Image Grabber Gallery
 // @namespace    local.image-grabber
-// @version      0.2.0
+// @version      0.2.1
 // @description  Find images on the current page and save selected ones.
 // @match        *://*/*
 // @icon         data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%230b1220%22%2F%3E%3Cpath%20d%3D%22M16%2018h32v28H16z%22%20fill%3D%22%23111827%22%20stroke%3D%22%2338bdf8%22%20stroke-width%3D%224%22%2F%3E%3Ccircle%20cx%3D%2242%22%20cy%3D%2225%22%20r%3D%224%22%20fill%3D%22%23facc15%22%2F%3E%3Cpath%20d%3D%22M19%2042l9-11%207%208%205-6%207%209z%22%20fill%3D%22%2322c55e%22%2F%3E%3Cpath%20d%3D%22M32%2054V36m0%2018l-8-8m8%208l8-8%22%20stroke%3D%22%23f8fafc%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E
@@ -342,7 +342,7 @@
         .ig-panel {
           width: min(1100px, 100%); height: min(760px, 100%);
           background: #0b1220; color: #e5e7eb; border: 1px solid #1f2a44; border-radius: 8px;
-          display: grid; grid-template-rows: auto 1fr auto;
+          display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
           overflow: hidden; box-shadow: 0 24px 70px rgba(0, 0, 0, .6);
           font: 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
@@ -356,44 +356,40 @@
           background: #172033; color: #e5e7eb; padding: 0 10px; cursor: pointer;
           display: inline-flex; align-items: center; gap: 6px;
         }
-        .ig-toolbar button:hover, .ig-select:hover { border-color: #38bdf8; color: #f8fafc; }
+        .ig-toolbar button:hover { border-color: #38bdf8; color: #f8fafc; }
         .ig-primary { background: #0ea5e9; color: #06111f; border-color: #38bdf8; font-weight: 700; }
         .ig-grid {
-          overflow: auto; padding: 12px; display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
+          min-height: 0; overflow-x: hidden; overflow-y: auto; padding: 12px; display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+          grid-auto-rows: auto; align-content: start; gap: 12px;
+          scrollbar-color: #38bdf8 #020617;
         }
         .ig-card {
-          border: 1px solid #1f2a44; border-radius: 8px; overflow: hidden;
-          background: #111827; min-width: 0; cursor: pointer;
+          position: relative; border: 1px solid #1f2a44; border-radius: 8px; overflow: hidden;
+          background: #020617; min-width: 0; cursor: pointer;
+          aspect-ratio: 4 / 3; display: block;
         }
-        .ig-card:hover { border-color: #38bdf8; }
+        .ig-card:hover, .ig-card:focus-visible { border-color: #38bdf8; outline: none; }
         .ig-card[aria-selected="true"] { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8; }
+        .ig-card[aria-selected="true"]::before {
+          content: ""; position: absolute; right: 8px; bottom: 8px; z-index: 1;
+          width: 30px; height: 30px; border-radius: 999px;
+          background: #38bdf8; box-shadow: 0 8px 18px rgba(2, 6, 23, .5);
+        }
+        .ig-card[aria-selected="true"]::after {
+          content: ""; position: absolute; right: 18px; bottom: 17px; z-index: 2;
+          width: 8px; height: 14px; border: solid #06111f; border-width: 0 3px 3px 0;
+          transform: rotate(45deg);
+        }
         .ig-card img {
-          width: 100%; aspect-ratio: 1 / 1; object-fit: contain;
+          width: 100%; height: 100%; object-fit: contain;
           background: #020617; display: block;
         }
-        .ig-card-body { padding: 8px; display: grid; gap: 6px; }
-        .ig-select {
-          min-height: 34px; border-radius: 6px; border: 1px solid #334155;
-          background: #172033; color: #e5e7eb; cursor: pointer;
-          display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-          width: 100%;
-        }
-        .ig-select::before {
-          content: ""; width: 16px; height: 16px; border-radius: 4px;
-          border: 1px solid #64748b; background: #020617; display: inline-block;
-        }
-        .ig-select[aria-pressed="true"] { background: #0f3b57; border-color: #38bdf8; color: #f8fafc; }
-        .ig-select[aria-pressed="true"]::before {
-          background: #38bdf8; border-color: #7dd3fc;
-          box-shadow: inset 0 0 0 3px #0f172a;
-        }
-        .ig-meta { color: #94a3b8; font-size: 12px; overflow-wrap: anywhere; }
         .ig-status { padding: 8px 10px; border-top: 1px solid #1f2a44; max-height: 120px; overflow: auto; color: #cbd5e1; background: #111827; }
         @media (max-width: 640px) {
           .ig-overlay { padding: 0; place-items: stretch; }
           .ig-panel { width: 100%; height: 100%; border-radius: 0; }
-          .ig-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .ig-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
         }
       `;
       return style;
@@ -426,7 +422,7 @@
     handleGalleryClick(event) {
       const target = event.target;
       if (!target || typeof target.closest !== "function") return;
-      const selectionTarget = target.closest(".ig-select, .ig-card");
+      const selectionTarget = target.closest(".ig-card");
       if (!selectionTarget || !selectionTarget.dataset.imageId) return;
       event.preventDefault();
       this.toggleSelection(selectionTarget.dataset.imageId);
@@ -436,7 +432,7 @@
       if (event.key !== "Enter" && event.key !== " ") return;
       const target = event.target;
       if (!target || typeof target.closest !== "function") return;
-      const selectionTarget = target.closest(".ig-select, .ig-card");
+      const selectionTarget = target.closest(".ig-card");
       if (!selectionTarget || !selectionTarget.dataset.imageId) return;
       event.preventDefault();
       this.toggleSelection(selectionTarget.dataset.imageId);
@@ -531,24 +527,14 @@
       card.setAttribute("role", "button");
       card.setAttribute("tabindex", "0");
       card.setAttribute("aria-selected", String(this.state.selected.has(item.id)));
+      card.setAttribute("aria-label", `${this.state.selected.has(item.id) ? "Deselect" : "Select"} ${item.displayUrl}`);
+      const size = item.width && item.height ? `${item.width}x${item.height}` : "size unknown";
+      card.title = `${size} - ${item.sourceTypes.join(", ")} - ${item.displayUrl}`;
       const img = document.createElement("img");
       img.src = item.url;
       img.alt = "";
       img.loading = "lazy";
-      const body = document.createElement("div");
-      body.className = "ig-card-body";
-      const selectButton = document.createElement("button");
-      selectButton.type = "button";
-      selectButton.className = "ig-select";
-      selectButton.dataset.imageId = item.id;
-      selectButton.setAttribute("aria-pressed", String(this.state.selected.has(item.id)));
-      selectButton.textContent = this.state.selected.has(item.id) ? "Selected" : "Select";
-      const meta = document.createElement("div");
-      meta.className = "ig-meta";
-      const size = item.width && item.height ? `${item.width}x${item.height}` : "size unknown";
-      meta.textContent = `${size} - ${item.sourceTypes.join(", ")} - ${item.displayUrl}`;
-      body.append(selectButton, meta);
-      card.append(img, body);
+      card.append(img);
       return card;
     },
 

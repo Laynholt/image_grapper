@@ -38,4 +38,4 @@ npm test
 
 Manual fixture:
 
-Open `fixtures/test-page.html` in a browser. The fixture includes the script directly for local development, so the floating icon button should appear without installing the userscript manager. Press the floating button and verify that normal images, `srcset`, lazy image URLs, and background images appear in the gallery. Use `Small hidden` / `Small shown` to toggle tiny images.
+Open `fixtures/test-page.html` in a browser. The fixture includes the script directly for local development, so the floating icon button should appear without installing the userscript manager. Press the floating button and verify that normal images, `srcset`, lazy image URLs, and background images appear in the scrollable gallery. Tap thumbnail cards to select them; selected cards show a border and check overlay. Use `Small hidden` / `Small shown` to toggle tiny images.

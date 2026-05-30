@@ -1,6 +1,6 @@
 {
   "name": "image-grabber-userscript",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Userscript that finds page images and offers a selectable download gallery.",
   "scripts": {
